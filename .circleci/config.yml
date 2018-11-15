@@ -1,0 +1,18 @@
+version: 2
+jobs:
+  build:
+    docker:
+          # CircleCI Go images available at: https://hub.docker.com/r/circleci/golang/
+          - image: circleci/golang:1.9
+
+    working_directory: /go/src/github.com/tus/tusd
+
+    steps:
+          - checkout
+          - run: go get -u github.com/aws/aws-sdk-go/...
+          - run: go get -u github.com/prometheus/client_golang/prometheus
+          - run: go build -o tusd cmd/tusd/main.go
+          - store_artifacts:
+                    path: /go/src/github.com/tus/tusd/tusd
+                    destination: builds/tusd
+
