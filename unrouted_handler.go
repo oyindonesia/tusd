@@ -65,6 +65,7 @@ var (
 	ErrModifyFinal                      = NewHTTPError(errors.New("modifying a final upload is not allowed"), http.StatusForbidden)
 	ErrUploadLengthAndUploadDeferLength = NewHTTPError(errors.New("provided both Upload-Length and Upload-Defer-Length"), http.StatusBadRequest)
 	ErrInvalidUploadDeferLength         = NewHTTPError(errors.New("invalid Upload-Defer-Length header"), http.StatusBadRequest)
+	ErrUnauthorizedAccess	            = NewHTTPError(errors.New("unauthorized access"), http.StatusUnauthorized)
 )
 
 // UnroutedHandler exposes methods to handle requests as part of the tus protocol,
@@ -183,7 +184,18 @@ func (handler *UnroutedHandler) Middleware(h http.Handler) http.Handler {
 			}
 		}
 
-		// todo add auth filter user auth header, dont pass and return error if failed
+		// todo (andri) add auth filter user auth header,
+		// todo (andri) dont pass and return error if failed
+		// eg :
+		/*
+			call, err := CallAuthAPI(request)
+			if err != nil {
+				handler.log("UnauthorizedAccess", "method", r.Method, "path", r.URL.Path)
+				handler.sendError(w, r, ErrUnauthorizedAccess)
+				return
+			}
+
+		 */
 
 		// Set current version used by the server
 		header.Set("Tus-Resumable", "1.0.0")
