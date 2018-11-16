@@ -183,6 +183,8 @@ func (handler *UnroutedHandler) Middleware(h http.Handler) http.Handler {
 			}
 		}
 
+		// todo add auth filter user auth header, dont pass and return error if failed
+
 		// Set current version used by the server
 		header.Set("Tus-Resumable", "1.0.0")
 
@@ -281,6 +283,7 @@ func (handler *UnroutedHandler) PostFile(w http.ResponseWriter, r *http.Request)
 	// Parse metadata
 	meta := ParseMetadataHeader(r.Header.Get("Upload-Metadata"))
 
+
 	info := FileInfo{
 		Size:           size,
 		SizeIsDeferred: sizeIsDeferred,
@@ -288,6 +291,10 @@ func (handler *UnroutedHandler) PostFile(w http.ResponseWriter, r *http.Request)
 		IsPartial:      isPartial,
 		IsFinal:        isFinal,
 		PartialUploads: partialUploads,
+	}
+
+	if meta["filename"] != "" {
+		info.ID = meta["filename"]
 	}
 
 	id, err := handler.composer.Core.NewUpload(info)
