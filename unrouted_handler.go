@@ -495,7 +495,7 @@ func (handler *UnroutedHandler) PatchFile(w http.ResponseWriter, r *http.Request
 
 	// Do not proxy the call to the data store if the upload is already completed
 	if !info.SizeIsDeferred && info.Offset == info.Size {
-		w.Header().Set("Upload-Offset", strconv.FormatInt(offset, 10))
+		w.Header().Set("Upload-Offset", strconv.FormatInt(info.Offset, 10))
 		handler.sendResp(w, r, http.StatusNoContent)
 		return
 	}
