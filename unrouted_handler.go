@@ -502,7 +502,7 @@ func (handler *UnroutedHandler) PatchFile(w http.ResponseWriter, r *http.Request
 		
 	if offset != info.Offset {
 		// first patch, client not aware if previous upload already completed
-		if offset==0 && !info.SizeIsDeferred && info.Offset == info.Size {
+		if offset==0 {
 			w.Header().Set("Upload-Offset", strconv.FormatInt(info.Offset, 10))
 			handler.sendResp(w, r, http.StatusNoContent)
 			return
