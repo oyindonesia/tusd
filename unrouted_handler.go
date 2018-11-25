@@ -55,6 +55,7 @@ var (
 	ErrInvalidContentType               = NewHTTPError(errors.New("missing or invalid Content-Type header"), http.StatusBadRequest)
 	ErrInvalidUploadLength              = NewHTTPError(errors.New("missing or invalid Upload-Length header"), http.StatusBadRequest)
 	ErrInvalidOffset                    = NewHTTPError(errors.New("missing or invalid Upload-Offset header"), http.StatusBadRequest)
+	ErrInvalidFilename                  = NewHTTPError(errors.New("missing or invalid Filename from metadata"), http.StatusBadRequest)
 	ErrNotFound                         = NewHTTPError(errors.New("upload not found"), http.StatusNotFound)
 	ErrFileLocked                       = NewHTTPError(errors.New("file currently locked"), 423) // Locked (WebDAV) (RFC 4918)
 	ErrMismatchOffset                   = NewHTTPError(errors.New("mismatched offset"), http.StatusConflict)
@@ -251,6 +252,13 @@ func (handler *UnroutedHandler) PostFile(w http.ResponseWriter, r *http.Request)
 	if handler.composer.UsesConcater {
 		concatHeader = r.Header.Get("Upload-Concat")
 	}
+	
+	// disable Upload-Concat to avoid complexity from change we're going to make
+	// (oky)
+	if len(concatHeader) > 0 {
+		handler.sendError(w, r, ErrNotImplemented)
+		return
+	}
 
 	// Parse Upload-Concat header
 	isPartial, isFinal, partialUploads, err := parseConcat(concatHeader)
@@ -307,6 +315,21 @@ func (handler *UnroutedHandler) PostFile(w http.ResponseWriter, r *http.Request)
 
 	if meta["filename"] != "" {
 		info.ID = meta["filename"]
+	}else
+	{
+		// make filename metadata mandatory
+		handler.sendError(w, r, ErrInvalidFilename)
+		return
+	}
+	
+	old_info, err := handler.composer.Core.GetInfo(info.ID)
+	if err == nil
+	{
+		// upload has been created before
+		w.Header().Set("Location", handler.absFileURL(r, old_info.ID))
+		
+		handler.sendResp(w, r, http.StatusCreated)
+		return
 	}
 
 	id, err := handler.composer.Core.NewUpload(info)
