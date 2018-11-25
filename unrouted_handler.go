@@ -482,7 +482,10 @@ func (handler *UnroutedHandler) PatchFile(w http.ResponseWriter, r *http.Request
 		handler.sendError(w, r, err)
 		return
 	}
-	handler.log("Chunkstatus", "id", id, "size", info.Size, "offset", info.Offset, "client_offset", offset)
+	handler.log("Chunkstatus", "id", id, 
+		    "size", i64toa(info.Size), 
+		    "offset", i64toa(info.Offset), 
+		    "client_offset", i64toa(offset))
 
 	// Modifying a final upload is not allowed
 	if info.IsFinal {
