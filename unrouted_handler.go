@@ -321,10 +321,11 @@ func (handler *UnroutedHandler) PostFile(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	
-	old_info, err := handler.composer.Core.GetInfo(info.ID)
+	old_info, err := handler.composer.Core.GetInfo(info.ID + "+-")
 	if err == nil {
 		// upload has been created before
 		w.Header().Set("Location", handler.absFileURL(r, old_info.ID))
+		handler.log("UploadAlreadyExists", "id", old_info.ID, "size", i64toa(old_info.Size))
 		
 		handler.sendResp(w, r, http.StatusCreated)
 		return
