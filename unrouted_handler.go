@@ -482,15 +482,11 @@ func (handler *UnroutedHandler) PatchFile(w http.ResponseWriter, r *http.Request
 		handler.sendError(w, r, err)
 		return
 	}
+	handler.log("Chunkstatus", "id", id, "size", info.Size, "offset", info.Offset, "client_offset", offset)
 
 	// Modifying a final upload is not allowed
 	if info.IsFinal {
 		handler.sendError(w, r, ErrModifyFinal)
-		return
-	}
-
-	if offset != info.Offset {
-		handler.sendError(w, r, ErrMismatchOffset)
 		return
 	}
 
@@ -500,7 +496,12 @@ func (handler *UnroutedHandler) PatchFile(w http.ResponseWriter, r *http.Request
 		handler.sendResp(w, r, http.StatusNoContent)
 		return
 	}
-
+		
+	if offset != info.Offset {
+		handler.sendError(w, r, ErrMismatchOffset)
+		return
+	}
+	
 	if r.Header.Get("Upload-Length") != "" {
 		if !handler.composer.UsesLengthDeferrer {
 			handler.sendError(w, r, ErrNotImplemented)
