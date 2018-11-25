@@ -315,16 +315,14 @@ func (handler *UnroutedHandler) PostFile(w http.ResponseWriter, r *http.Request)
 
 	if meta["filename"] != "" {
 		info.ID = meta["filename"]
-	}else
-	{
+	}else {
 		// make filename metadata mandatory
 		handler.sendError(w, r, ErrInvalidFilename)
 		return
 	}
 	
 	old_info, err := handler.composer.Core.GetInfo(info.ID)
-	if err == nil
-	{
+	if err == nil {
 		// upload has been created before
 		w.Header().Set("Location", handler.absFileURL(r, old_info.ID))
 		
