@@ -2,6 +2,8 @@ package tusd
 
 import (
     "fmt"
+    "encoding/json"
+    "io/ioutil"
 	"encoding/base64"
 	"errors"
 	"io"
@@ -162,7 +164,7 @@ func AuthorizeCoreChatClient(token string) *httpAuthResponseMsg {
 	// TODO : Correct config file to store local/dev/staging conf.
     req, err := http.NewRequest("GET", "http://172.13.3.68/api/v1/auth/authenticate", nil)
 	if err != nil {
-		handler.sendError("The HTTP request failed with error %s\n", err)
+		// handler.sendError("The HTTP request failed with error %s\n", err)
 	}
 	
     // Token example
@@ -170,18 +172,18 @@ func AuthorizeCoreChatClient(token string) *httpAuthResponseMsg {
     req.Header.Set("X-Oy-Authorization", token)
     response, err := client.Do(req)
     if err != nil {
-        handler.sendError("The HTTP request failed with error %s\n", err)
+        // handler.sendError("The HTTP request failed with error %s\n", err)
     } else {
         data, _ := ioutil.ReadAll(response.Body)
         err = json.Unmarshal(data, &arm)
         if err != nil {
-			handler.sendError(err)
+			// handler.sendError(err)
         }
 	}
 
 	return &httpAuthResponseMsg{
-		Message: arm.message,
-		Result: arm.result,
+		message: arm.message,
+		result: arm.result,
 	}
 } 
 
