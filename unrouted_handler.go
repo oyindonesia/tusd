@@ -222,7 +222,7 @@ func (handler *UnroutedHandler) Middleware(h http.Handler) http.Handler {
     
 		// Check (Authorize) Access to CoreChatAuth APIs
 		token := r.Header.Get("X-Oy-Authorization")
-		resp := authorizeCoreChatClient(token)
+		resp := handler.authorizeCoreChatClient(token)
 		if resp.message != "Authorized" {
 			handler.log("UnauthorizedAccess", "method", r.Method, "path", r.URL.Path)
 			handler.sendError(w, r, ErrUnauthorizedAccess)
