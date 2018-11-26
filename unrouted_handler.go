@@ -55,6 +55,7 @@ var (
 	ErrInvalidContentType               = NewHTTPError(errors.New("missing or invalid Content-Type header"), http.StatusBadRequest)
 	ErrInvalidUploadLength              = NewHTTPError(errors.New("missing or invalid Upload-Length header"), http.StatusBadRequest)
 	ErrInvalidOffset                    = NewHTTPError(errors.New("missing or invalid Upload-Offset header"), http.StatusBadRequest)
+	ErrInvalidFilename                  = NewHTTPError(errors.New("missing or invalid Filename from metadata"), http.StatusBadRequest)
 	ErrNotFound                         = NewHTTPError(errors.New("upload not found"), http.StatusNotFound)
 	ErrFileLocked                       = NewHTTPError(errors.New("file currently locked"), 423) // Locked (WebDAV) (RFC 4918)
 	ErrMismatchOffset                   = NewHTTPError(errors.New("mismatched offset"), http.StatusConflict)
@@ -251,6 +252,13 @@ func (handler *UnroutedHandler) PostFile(w http.ResponseWriter, r *http.Request)
 	if handler.composer.UsesConcater {
 		concatHeader = r.Header.Get("Upload-Concat")
 	}
+	
+	// disable Upload-Concat to avoid complexity from change we're going to make
+	// (oky)
+	if len(concatHeader) > 0 {
+		handler.sendError(w, r, ErrNotImplemented)
+		return
+	}
 
 	// Parse Upload-Concat header
 	isPartial, isFinal, partialUploads, err := parseConcat(concatHeader)
@@ -307,6 +315,20 @@ func (handler *UnroutedHandler) PostFile(w http.ResponseWriter, r *http.Request)
 
 	if meta["filename"] != "" {
 		info.ID = meta["filename"]
+	}else {
+		// make filename metadata mandatory
+		handler.sendError(w, r, ErrInvalidFilename)
+		return
+	}
+	
+	old_info, err := handler.composer.Core.GetInfo(info.ID + "+-")
+	if err == nil {
+		// upload has been created before
+		w.Header().Set("Location", handler.absFileURL(r, old_info.ID))
+		handler.log("UploadAlreadyExists", "id", old_info.ID, "size", i64toa(old_info.Size))
+		
+		handler.sendResp(w, r, http.StatusCreated)
+		return
 	}
 
 	id, err := handler.composer.Core.NewUpload(info)
@@ -460,6 +482,10 @@ func (handler *UnroutedHandler) PatchFile(w http.ResponseWriter, r *http.Request
 		handler.sendError(w, r, err)
 		return
 	}
+	handler.log("Chunkstatus", "id", id, 
+		    "size", i64toa(info.Size), 
+		    "offset", i64toa(info.Offset), 
+		    "client_offset", i64toa(offset))
 
 	// Modifying a final upload is not allowed
 	if info.IsFinal {
@@ -467,18 +493,24 @@ func (handler *UnroutedHandler) PatchFile(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if offset != info.Offset {
-		handler.sendError(w, r, ErrMismatchOffset)
-		return
-	}
-
 	// Do not proxy the call to the data store if the upload is already completed
 	if !info.SizeIsDeferred && info.Offset == info.Size {
-		w.Header().Set("Upload-Offset", strconv.FormatInt(offset, 10))
+		w.Header().Set("Upload-Offset", strconv.FormatInt(info.Offset, 10))
 		handler.sendResp(w, r, http.StatusNoContent)
 		return
 	}
-
+		
+	if offset != info.Offset {
+		// first patch, client not aware if previous upload already completed
+		if offset==0 {
+			w.Header().Set("Upload-Offset", strconv.FormatInt(info.Offset, 10))
+			handler.sendResp(w, r, http.StatusNoContent)
+			return
+		}
+		handler.sendError(w, r, ErrMismatchOffset)
+		return
+	}
+	
 	if r.Header.Get("Upload-Length") != "" {
 		if !handler.composer.UsesLengthDeferrer {
 			handler.sendError(w, r, ErrNotImplemented)
