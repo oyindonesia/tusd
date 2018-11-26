@@ -170,12 +170,12 @@ func (handler *UnroutedHandler) authorizeCoreChatClient(token string) *httpAuthR
     req.Header.Set("X-Oy-Authorization", token)
     response, err := client.Do(req)
     if err != nil {
-        handler.sendError(response, req, err)
+        // handler.sendError(response, req, err)
     } else {
         data, _ := ioutil.ReadAll(response.Body)
         err = json.Unmarshal(data, &arm)
         if err != nil {
-			handler.sendError(response, req, err)
+			// handler.sendError(response, req, err)
         }
 	}
 
