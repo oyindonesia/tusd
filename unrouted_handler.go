@@ -157,27 +157,25 @@ func NewUnroutedHandler(config Config) (*UnroutedHandler, error) {
 	return handler, nil
 }
 
-func authorizeCoreChatClient(token string) *httpAuthResponseMsg {
+func (handler *UnroutedHandler) authorizeCoreChatClient(token string) *httpAuthResponseMsg {
 	var arm httpAuthResponseMsg
 
 	client := &http.Client{}
 	// TODO : Correct config file to store local/dev/staging conf.
     req, err := http.NewRequest("GET", "http://172.13.3.68/api/v1/auth/authenticate", nil)
 	if err != nil {
-		// handler.sendError("The HTTP request failed with error %s\n", err)
+		handler.sendError("The HTTP request failed with error %s\n", err)
 	}
 	
-    // Token example
-    // token := "token=eyJpYXQiOjE1NDMyMTE4MzAsImFsZyI6IkhTMjU2IiwiZXhwIjoxNTQ1NjMxMDMwfQ.eyJ1c2VybmFtZSI6ImtvcGlidW5kYXIiLCJzZXNzaW9uX2lkIjoiYzBiMzE4MmQifQ.Rcys4fElCI85F7JqnP4MQoCYN0Ci91upSxmDUJTjoSE"
     req.Header.Set("X-Oy-Authorization", token)
     response, err := client.Do(req)
     if err != nil {
-        // handler.sendError("The HTTP request failed with error %s\n", err)
+        handler.sendError("The HTTP request failed with error %s\n", err)
     } else {
         data, _ := ioutil.ReadAll(response.Body)
         err = json.Unmarshal(data, &arm)
         if err != nil {
-			// handler.sendError(err)
+			handler.sendError(err)
         }
 	}
 
@@ -225,7 +223,7 @@ func (handler *UnroutedHandler) Middleware(h http.Handler) http.Handler {
 		// Check (Authorize) Access to CoreChatAuth APIs
 		token := r.Header.Get("X-Oy-Authorization")
 		resp := authorizeCoreChatClient(token)
-		if resp.message != 'Authorized' {
+		if resp.message != "Authorized" {
 			handler.log("UnauthorizedAccess", "method", r.Method, "path", r.URL.Path)
 			handler.sendError(w, r, ErrUnauthorizedAccess)
 			return
