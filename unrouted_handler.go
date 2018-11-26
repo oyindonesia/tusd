@@ -1,6 +1,7 @@
 package tusd
 
 import (
+    "fmt"
 	"encoding/base64"
 	"errors"
 	"io"
@@ -37,6 +38,10 @@ type httpError struct {
 	error
 	statusCode int
 }
+
+type httpAuthResponseMsg struct {
+	message string `json:"message"` 
+	result  int    `json:"result"` 
 
 func (err httpError) StatusCode() int {
 	return err.statusCode
@@ -149,6 +154,36 @@ func NewUnroutedHandler(config Config) (*UnroutedHandler, error) {
 	return handler, nil
 }
 
+func AuthorizeCoreChatClient(token string) *AuthResponseMsg {
+	var arm AuthResponseMsg
+
+	client := &http.Client{}
+	// TODO : Correct config file to store local/dev/staging conf.
+    req, err := http.NewRequest("GET", "http://172.13.3.68/api/v1/auth/authenticate", nil)
+	if err != nil {
+		handler.sendError("The HTTP request failed with error %s\n", err)
+	}
+	
+    // Token example
+    // token := "token=eyJpYXQiOjE1NDMyMTE4MzAsImFsZyI6IkhTMjU2IiwiZXhwIjoxNTQ1NjMxMDMwfQ.eyJ1c2VybmFtZSI6ImtvcGlidW5kYXIiLCJzZXNzaW9uX2lkIjoiYzBiMzE4MmQifQ.Rcys4fElCI85F7JqnP4MQoCYN0Ci91upSxmDUJTjoSE"
+    req.Header.Set("X-Oy-Authorization", token)
+    response, err := client.Do(req)
+    if err != nil {
+        handler.sendError("The HTTP request failed with error %s\n", err)
+    } else {
+        data, _ := ioutil.ReadAll(response.Body)
+        err = json.Unmarshal(data, &arm)
+        if err != nil {
+			handler.sendError(err)
+        }
+	}
+
+	return &AuthResponseMsg{
+		Message: arm.message,
+		Result: arm.result,
+	}
+} 
+
 // Middleware checks various aspects of the request and ensures that it
 // conforms with the spec. Also handles method overriding for clients which
 // cannot make PATCH AND DELETE requests. If you are using the tusd handlers
@@ -196,6 +231,8 @@ func (handler *UnroutedHandler) Middleware(h http.Handler) http.Handler {
 			}
 
 		 */
+
+		 AuthorizeCoreChatClient
 
 		// Set current version used by the server
 		header.Set("Tus-Resumable", "1.0.0")
@@ -304,9 +341,10 @@ func (handler *UnroutedHandler) PostFile(w http.ResponseWriter, r *http.Request)
 		IsFinal:        isFinal,
 		PartialUploads: partialUploads,
 	}
-
+	fmt.Printf("TEST TEST %s\n", meta["filename"])
 	if meta["filename"] != "" {
 		info.ID = meta["filename"]
+		fmt.Printf("%s\n", info.ID)
 	}
 
 	id, err := handler.composer.Core.NewUpload(info)
