@@ -42,6 +42,7 @@ type httpError struct {
 type httpAuthResponseMsg struct {
 	message string `json:"message"` 
 	result  int    `json:"result"` 
+}
 
 func (err httpError) StatusCode() int {
 	return err.statusCode
@@ -154,8 +155,8 @@ func NewUnroutedHandler(config Config) (*UnroutedHandler, error) {
 	return handler, nil
 }
 
-func AuthorizeCoreChatClient(token string) *AuthResponseMsg {
-	var arm AuthResponseMsg
+func AuthorizeCoreChatClient(token string) *httpAuthResponseMsg {
+	var arm httpAuthResponseMsg
 
 	client := &http.Client{}
 	// TODO : Correct config file to store local/dev/staging conf.
@@ -178,7 +179,7 @@ func AuthorizeCoreChatClient(token string) *AuthResponseMsg {
         }
 	}
 
-	return &AuthResponseMsg{
+	return &httpAuthResponseMsg{
 		Message: arm.message,
 		Result: arm.result,
 	}
@@ -219,20 +220,13 @@ func (handler *UnroutedHandler) Middleware(h http.Handler) http.Handler {
 			}
 		}
 
-		// todo (andri) add auth filter user auth header,
-		// todo (andri) dont pass and return error if failed
-		// eg :
-		/*
-			call, err := CallAuthAPI(request)
-			if err != nil {
-				handler.log("UnauthorizedAccess", "method", r.Method, "path", r.URL.Path)
-				handler.sendError(w, r, ErrUnauthorizedAccess)
-				return
-			}
-
-		 */
-
-		 AuthorizeCoreChatClient
+		// Check (Authorize) Access to CoreChatAuth APIs
+		resp := AuthorizeCoreChatClient(token)
+		if resp.message != 'Authorized' {
+			handler.log("UnauthorizedAccess", "method", r.Method, "path", r.URL.Path)
+			handler.sendError(w, r, ErrUnauthorizedAccess)
+			return
+		}
 
 		// Set current version used by the server
 		header.Set("Tus-Resumable", "1.0.0")
