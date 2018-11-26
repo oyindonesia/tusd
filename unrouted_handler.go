@@ -164,18 +164,18 @@ func (handler *UnroutedHandler) authorizeCoreChatClient(token string) *httpAuthR
 	// TODO : Correct config file to store local/dev/staging conf.
     req, err := http.NewRequest("GET", "http://172.13.3.68/api/v1/auth/authenticate", nil)
 	if err != nil {
-		handler.log("The HTTP request failed with error %s\n", err)
+		handler.sendError(nil, req, err)
 	}
 	
     req.Header.Set("X-Oy-Authorization", token)
     response, err := client.Do(req)
     if err != nil {
-        handler.log("The HTTP request failed with error %s\n", err)
+        handler.sendError(resp, req, err)
     } else {
         data, _ := ioutil.ReadAll(response.Body)
         err = json.Unmarshal(data, &arm)
         if err != nil {
-			handler.log(err)
+			handler.sendError(resp, req, err)
         }
 	}
 
