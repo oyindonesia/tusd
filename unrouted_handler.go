@@ -157,7 +157,7 @@ func NewUnroutedHandler(config Config) (*UnroutedHandler, error) {
 	return handler, nil
 }
 
-func AuthorizeCoreChatClient(token string) *httpAuthResponseMsg {
+func authorizeCoreChatClient(token string) *httpAuthResponseMsg {
 	var arm httpAuthResponseMsg
 
 	client := &http.Client{}
@@ -221,9 +221,10 @@ func (handler *UnroutedHandler) Middleware(h http.Handler) http.Handler {
 				header.Add("Access-Control-Expose-Headers", "Upload-Offset, Location, Upload-Length, Tus-Version, Tus-Resumable, Tus-Max-Size, Tus-Extension, Upload-Metadata, Upload-Defer-Length, Upload-Concat")
 			}
 		}
-
+    
 		// Check (Authorize) Access to CoreChatAuth APIs
-		resp := AuthorizeCoreChatClient(token)
+		token := r.Header.Get("X-Oy-Authorization")
+		resp := authorizeCoreChatClient(token)
 		if resp.message != 'Authorized' {
 			handler.log("UnauthorizedAccess", "method", r.Method, "path", r.URL.Path)
 			handler.sendError(w, r, ErrUnauthorizedAccess)
