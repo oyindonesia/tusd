@@ -382,7 +382,7 @@ func (store S3Store) GetInfo(id string) (info tusd.FileInfo, err error) {
 		Key:    store.keyWithPrefix(uploadId + ".part"),
 	})
 	if err != nil {
-		if !isAwsError(err, s3.ErrCodeNoSuchKey) && !isAwsError(err, "AccessDenied") {
+		if !isAwsError(err, s3.ErrCodeNoSuchKey) && !isAwsError(err, "AccessDenied") && !isAwsError(err, "Forbidden"){
 			return info, err
 		}
 
