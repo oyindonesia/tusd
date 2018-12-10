@@ -896,7 +896,8 @@ func (handler *UnroutedHandler) sendProgressMessages(info FileInfo, reader io.Re
 // X-Forwarded-Proto and Forwarded headers will also be checked to
 // support proxies.
 func getHostAndProtocol(r *http.Request, allowForwarded bool) (host, proto string) {
-	println("debug request uri :"+ r.URL.RequestURI())
+	println("debug request host :"+ r.Host)
+	println("debug request proto :"+ r.Proto)
 	if r.TLS != nil {
 		println("debug is TLS")
 		proto = "https"
