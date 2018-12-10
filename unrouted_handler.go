@@ -897,8 +897,10 @@ func (handler *UnroutedHandler) sendProgressMessages(info FileInfo, reader io.Re
 // support proxies.
 func getHostAndProtocol(r *http.Request, allowForwarded bool) (host, proto string) {
 	if r.TLS != nil {
+		print("debug is TLS")
 		proto = "https"
 	} else {
+		print("debug not TLS")
 		proto = "http"
 	}
 
@@ -913,6 +915,7 @@ func getHostAndProtocol(r *http.Request, allowForwarded bool) (host, proto strin
 	}
 
 	if h := r.Header.Get("X-Forwarded-Proto"); h == "http" || h == "https" {
+		print("debug has X-Forwarded-Proto :" + h)
 		proto = h
 	}
 
@@ -922,6 +925,7 @@ func getHostAndProtocol(r *http.Request, allowForwarded bool) (host, proto strin
 		}
 
 		if r := reForwardedProto.FindStringSubmatch(h); len(r) == 2 {
+			print("debug has Forwarded :" + r[1])
 			proto = r[1]
 		}
 	}
