@@ -847,9 +847,9 @@ func (handler *UnroutedHandler) absFileURL(r *http.Request, id string) string {
 	}
 
 	// Read origin and protocol from request
-	host, proto := getHostAndProtocol(r, handler.config.RespectForwardedHeaders)
+	host, _ := getHostAndProtocol(r, handler.config.RespectForwardedHeaders)
 
-	url := proto + "://" + host + handler.basePath + id
+	url := "https" + "://" + host + handler.basePath + id
 
 	return url
 }
