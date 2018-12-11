@@ -42,8 +42,8 @@ type httpError struct {
 }
 
 type httpAuthResponseMsg struct {
-	message string `json:"message"` 
-	result  int    `json:"result"` 
+	Message string `json:"message"`
+	Result  int    `json:"result"`
 }
 
 func (err httpError) StatusCode() int {
@@ -118,6 +118,9 @@ type UnroutedHandler struct {
 	CreatedUploads chan FileInfo
 	// Metrics provides numbers of the usage for this handler.
 	Metrics Metrics
+
+	// Authenticate all request (use token) if auth hostname is provided
+	AuthService 	string
 }
 
 // NewUnroutedHandler creates a new handler without routing using the given
@@ -153,37 +156,48 @@ func NewUnroutedHandler(config Config) (*UnroutedHandler, error) {
 		logger:            config.Logger,
 		extensions:        extensions,
 		Metrics:           newMetrics(),
+		AuthService:	   config.Auth,
 	}
 
 	return handler, nil
 }
 
-func (handler *UnroutedHandler) authorizeCoreChatClient(token string) *httpAuthResponseMsg {
-	var arm httpAuthResponseMsg
+func (handler *UnroutedHandler) authorizeClientRequest(token string) bool {
 
+	if handler.AuthService == "" || handler.AuthService == "None" {
+		handler.log("AuthAccessService", "bypass authentication", handler.AuthService)
+		return true
+	}
+
+	var arm httpAuthResponseMsg
 	client := &http.Client{}
-	// TODO : Correct config file to store local/dev/staging conf.
-    req, err := http.NewRequest("GET", "http://172.13.3.68/api/v1/auth/authenticate", nil)
+    req, err := http.NewRequest("GET", handler.AuthService, nil)
 	if err != nil {
-		handler.sendError(nil, req, err)
+		handler.log("AuthAccessService", "failed create auth request", err.Error())
+		return false
 	}
 	
     req.Header.Set("X-Oy-Authorization", token)
     response, err := client.Do(req)
     if err != nil {
-        // handler.sendError(response, req, err)
+		handler.log("AuthAccessService", "failed get auth response", err.Error())
+		return false
     } else {
         data, _ := ioutil.ReadAll(response.Body)
         err = json.Unmarshal(data, &arm)
         if err != nil {
-			// handler.sendError(response, req, err)
+			handler.log("AuthAccessService", "failed to parse auth response", err.Error())
+			return false
         }
 	}
 
-	return &httpAuthResponseMsg{
-		message: arm.message,
-		result: arm.result,
+	handler.log("AuthAccessService", "getting auth response", arm.Message)
+
+	if arm.Message == "Authorized" {
+		return true
 	}
+
+	return false
 } 
 
 // Middleware checks various aspects of the request and ensures that it
@@ -223,8 +237,8 @@ func (handler *UnroutedHandler) Middleware(h http.Handler) http.Handler {
     
 		// Check (Authorize) Access to CoreChatAuth APIs
 		token := r.Header.Get("X-Oy-Authorization")
-		resp := handler.authorizeCoreChatClient(token)
-		if resp.message != "Authorized" {
+		resp := handler.authorizeClientRequest(strings.Replace(token, "token=", "", -1))
+		if !resp {
 			handler.log("UnauthorizedAccess", "method", r.Method, "path", r.URL.Path)
 			handler.sendError(w, r, ErrUnauthorizedAccess)
 			return
