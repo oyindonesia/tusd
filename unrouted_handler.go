@@ -1,12 +1,11 @@
 package tusd
 
 import (
-    "fmt"
-    "encoding/json"
-    "io/ioutil"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"io"
+	"io/ioutil"
 	"log"
 	"math"
 	"net"
@@ -358,7 +357,7 @@ func (handler *UnroutedHandler) PostFile(w http.ResponseWriter, r *http.Request)
 		IsFinal:        isFinal,
 		PartialUploads: partialUploads,
 	}
-	fmt.Printf("TEST TEST %s\n", meta["filename"])
+
 	if meta["filename"] != "" {
 		info.ID = meta["filename"]
 	}else {
