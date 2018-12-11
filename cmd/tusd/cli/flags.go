@@ -53,7 +53,7 @@ func ParseFlags() {
 	flag.BoolVar(&Flags.ExposeMetrics, "expose-metrics", true, "Expose metrics about tusd usage")
 	flag.StringVar(&Flags.MetricsPath, "metrics-path", "/metrics", "Path under which the metrics endpoint will be accessible")
 	flag.BoolVar(&Flags.BehindProxy, "behind-proxy", false, "Respect X-Forwarded-* and similar headers which may be set by proxies")
-	flag.StringVar(&Flags.AuthService, "auth-service", "", "Provide auth service hostname to authenticate all request. Set as empty or None to bypass")
+	flag.StringVar(&Flags.AuthService, "auth-service", "", "Provide auth service hostname to authenticate all request. Set as empty or skip to bypass")
 	flag.StringVar(&Flags.S3Region, "s3-region", "ap-southeast-1", "S3 region name. Default is ap-southeast-1")
 
 
