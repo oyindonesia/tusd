@@ -43,6 +43,9 @@ type Config struct {
 	// potentially set by proxies when generating an absolute URL in the
 	// response to POST requests.
 	RespectForwardedHeaders bool
+
+	// token authentication service for all request
+	Auth string
 }
 
 func (config *Config) validate() error {

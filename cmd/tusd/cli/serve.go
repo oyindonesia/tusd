@@ -19,6 +19,7 @@ func Serve() {
 		NotifyTerminatedUploads: true,
 		NotifyUploadProgress:    true,
 		NotifyCreatedUploads:    true,
+		Auth: 					 Flags.AuthService,
 	})
 	if err != nil {
 		stderr.Fatalf("Unable to create handler: %s", err)

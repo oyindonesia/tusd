@@ -2,8 +2,10 @@ package tusd
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"io"
+	"io/ioutil"
 	"log"
 	"math"
 	"net"
@@ -36,6 +38,11 @@ type HTTPError interface {
 type httpError struct {
 	error
 	statusCode int
+}
+
+type httpAuthResponseMsg struct {
+	Message string `json:"message"`
+	Result  int    `json:"result"`
 }
 
 func (err httpError) StatusCode() int {
@@ -110,6 +117,9 @@ type UnroutedHandler struct {
 	CreatedUploads chan FileInfo
 	// Metrics provides numbers of the usage for this handler.
 	Metrics Metrics
+
+	// Authenticate all request (use token) if auth hostname is provided
+	AuthService 	string
 }
 
 // NewUnroutedHandler creates a new handler without routing using the given
@@ -145,10 +155,49 @@ func NewUnroutedHandler(config Config) (*UnroutedHandler, error) {
 		logger:            config.Logger,
 		extensions:        extensions,
 		Metrics:           newMetrics(),
+		AuthService:	   config.Auth,
 	}
 
 	return handler, nil
 }
+
+func (handler *UnroutedHandler) authorizeClientRequest(token string) bool {
+
+	if handler.AuthService == "" || handler.AuthService == "skip" {
+		handler.log("AuthAccessService", "bypass authentication", handler.AuthService)
+		return true
+	}
+
+	var arm httpAuthResponseMsg
+	client := &http.Client{}
+    req, err := http.NewRequest("GET", handler.AuthService, nil)
+	if err != nil {
+		handler.log("AuthAccessService", "failed create auth request", err.Error())
+		return false
+	}
+	
+    req.Header.Set("X-Oy-Authorization", token)
+    response, err := client.Do(req)
+    if err != nil {
+		handler.log("AuthAccessService", "failed get auth response", err.Error())
+		return false
+    } else {
+        data, _ := ioutil.ReadAll(response.Body)
+        err = json.Unmarshal(data, &arm)
+        if err != nil {
+			handler.log("AuthAccessService", "failed to parse auth response", err.Error())
+			return false
+        }
+	}
+
+	handler.log("AuthAccessService", "getting auth response", arm.Message)
+
+	if arm.Message == "Authorized" {
+		return true
+	}
+
+	return false
+} 
 
 // Middleware checks various aspects of the request and ensures that it
 // conforms with the spec. Also handles method overriding for clients which
@@ -184,19 +233,15 @@ func (handler *UnroutedHandler) Middleware(h http.Handler) http.Handler {
 				header.Add("Access-Control-Expose-Headers", "Upload-Offset, Location, Upload-Length, Tus-Version, Tus-Resumable, Tus-Max-Size, Tus-Extension, Upload-Metadata, Upload-Defer-Length, Upload-Concat")
 			}
 		}
-
-		// todo (andri) add auth filter user auth header,
-		// todo (andri) dont pass and return error if failed
-		// eg :
-		/*
-			call, err := CallAuthAPI(request)
-			if err != nil {
-				handler.log("UnauthorizedAccess", "method", r.Method, "path", r.URL.Path)
-				handler.sendError(w, r, ErrUnauthorizedAccess)
-				return
-			}
-
-		 */
+    
+		// Check (Authorize) Access to CoreChatAuth APIs
+		token := r.Header.Get("X-Oy-Authorization")
+		resp := handler.authorizeClientRequest(strings.Replace(token, "token=", "", -1))
+		if !resp {
+			handler.log("UnauthorizedAccess", "method", r.Method, "path", r.URL.Path)
+			handler.sendError(w, r, ErrUnauthorizedAccess)
+			return
+		}
 
 		// Set current version used by the server
 		header.Set("Tus-Resumable", "1.0.0")
