@@ -31,10 +31,11 @@ func CreateComposer() {
 
 			s3Config = s3Config.WithEndpoint(Flags.S3Endpoint).WithS3ForcePathStyle(true)
 		}
+		stdout.Printf("Using S3 temporary part folder: %s\n", Flags.PartDir)
 
 		// Derive credentials from default credential chain (env, shared, ec2 instance role)
 		// as per https://github.com/aws/aws-sdk-go#configuring-credentials
-		store := s3store.New(Flags.S3Bucket, s3.New(session.Must(session.NewSession(&aws.Config{Region: aws.String(Flags.S3Region)})), s3Config))
+		store := s3store.New(Flags.S3Bucket, s3.New(session.Must(session.NewSession(&aws.Config{Region: aws.String(Flags.S3Region)})), s3Config), Flags.PartDir)
 		store.ObjectPrefix = Flags.S3ObjectPrefix
 		store.UseIn(Composer)
 

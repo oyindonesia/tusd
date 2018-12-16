@@ -3,6 +3,7 @@ package cli
 import (
 	"flag"
 	"path/filepath"
+	"strings"
 )
 
 var Flags struct {
@@ -31,6 +32,7 @@ var Flags struct {
 	HttpHooksInstalled bool
 
 	AuthService		  string
+	PartDir           string
 }
 
 func ParseFlags() {
@@ -54,6 +56,7 @@ func ParseFlags() {
 	flag.StringVar(&Flags.MetricsPath, "metrics-path", "/metrics", "Path under which the metrics endpoint will be accessible")
 	flag.BoolVar(&Flags.BehindProxy, "behind-proxy", false, "Respect X-Forwarded-* and similar headers which may be set by proxies")
 	flag.StringVar(&Flags.AuthService, "auth-service", "", "Provide auth service hostname to authenticate all request. Set as empty or skip to bypass")
+	flag.StringVar(&Flags.PartDir, "part-path", "/mnt/efs", "Provide location for imcomplete S3 chunk parts")
 	flag.StringVar(&Flags.S3Region, "s3-region", "ap-southeast-1", "S3 region name. Default is ap-southeast-1")
 
 
@@ -77,5 +80,10 @@ func ParseFlags() {
 			"(using -s3-bucket) must be specified to start tusd but " +
 			"neither flag was provided. Please consult `tusd -help` for " +
 			"more information on these options.")
+	}
+
+
+	if !strings.HasSuffix(Flags.PartDir, "/") {
+		Flags.PartDir+= "/"
 	}
 }

@@ -81,12 +81,14 @@ package s3store
 
 import (
 	"bytes"
+	"debug/elf"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -139,6 +141,10 @@ type S3Store struct {
 	// MaxObjectSize is the maximum size an S3 Object can have according to S3
 	// API specifications. See link above.
 	MaxObjectSize int64
+
+	// location to store subpart chunk (temporary chunk before meet S3's minimum
+	// part size)
+	SubPartDir string
 }
 
 type S3API interface {
@@ -154,7 +160,7 @@ type S3API interface {
 }
 
 // New constructs a new storage using the supplied bucket and service object.
-func New(bucket string, service S3API) S3Store {
+func New(bucket string, service S3API, SubPartDir string) S3Store {
 	return S3Store{
 		Bucket:            bucket,
 		Service:           service,
@@ -162,6 +168,7 @@ func New(bucket string, service S3API) S3Store {
 		MinPartSize:       5 * 1024 * 1024,
 		MaxMultipartParts: 10000,
 		MaxObjectSize:     5 * 1024 * 1024 * 1024 * 1024,
+		SubPartDir:        SubPartDir,
 	}
 }
 
@@ -249,12 +256,50 @@ func (store S3Store) WriteChunk(id string, offset int64, src io.Reader) (int64, 
 	// Get number of parts to generate next number
 	parts, err := store.listAllParts(id)
 	if err != nil {
-		return 0, err
+		return bytesUploaded, err
 	}
 
 	numParts := len(parts)
 	nextPartNum := int64(numParts + 1)
 
+	file, local_size, err:=store.GetOrCreateSubPartFile(uploadId)
+	if err!=nil {
+		return bytesUploaded, err
+	}
+	n, err:=io.Copy(file, src)
+	if err!=nil {
+		return bytesUploaded, err
+	}
+	local_size=n+local_size
+    file.seek(0, 0)
+
+	targetS3Part := int64(size-offset)
+	if info.SizeIsDeferred || ((size-offset)>optimalPartSize) {
+    	targetS3Part = optimalPartSize
+	}
+
+	if local_size >= targetS3Part {
+		defer os.Remove(file.Name())
+		defer file.Close()
+
+		_, err = store.Service.UploadPart(&s3.UploadPartInput{
+			Bucket:     aws.String(store.Bucket),
+			Key:        store.keyWithPrefix(uploadId),
+			UploadId:   aws.String(multipartId),
+			PartNumber: aws.Int64(nextPartNum),
+			Body:       file,
+		})
+		if err != nil {
+			return bytesUploaded, err
+		}
+
+        bytesUploaded +=n
+	} else {
+		defer file.Close()
+		bytesUploaded += n
+	}
+	return bytesUploaded, nil
+	/*
 	for {
 		// Create a temporary file to store the part in it
 		file, err := ioutil.TempFile("", "tusd-s3-tmp-")
@@ -303,6 +348,7 @@ func (store S3Store) WriteChunk(id string, offset int64, src io.Reader) (int64, 
 		bytesUploaded += n
 		nextPartNum += 1
 	}
+	*/
 }
 
 func (store S3Store) GetInfo(id string) (info tusd.FileInfo, err error) {
@@ -347,6 +393,15 @@ func (store S3Store) GetInfo(id string) (info tusd.FileInfo, err error) {
 	}
 
 	info.Offset = offset
+
+	// get under 5MB part from local FS here
+	if !info.SizeIsDeferred && (info.offset < info.Size) {
+		localSize, err := store.GetSubPartSize(uploadId)
+		if err!= nil {
+			return 0, err
+		}
+		info.Offset += localSize
+	}
 
 	return
 }
@@ -415,6 +470,8 @@ func (store S3Store) Terminate(id string) error {
 	go func() {
 		defer wg.Done()
 
+		store.DeleteSubPartFile(uploadId)
+
 		// Delete the info and content file
 		res, err := store.Service.DeleteObjects(&s3.DeleteObjectsInput{
 			Bucket: aws.String(store.Bucket),
@@ -480,6 +537,8 @@ func (store S3Store) FinishUpload(id string) error {
 			Parts: completedParts,
 		},
 	})
+
+	store.DeleteSubPartFile(uploadId)
 
 	return err
 }
@@ -622,4 +681,39 @@ func (store S3Store) keyWithPrefix(key string) *string {
 	}
 
 	return aws.String(prefix + key)
+}
+
+func (store S3Store) GetOrCreateSubPartFile(uploadId string) (f *os.File, size int64, err error) {
+	f, err =os.OpenFile(store.SubPartDir+uploadId+".subpart", os.O_RDWR|os.O_CREATE|os.O_EXCL|os.O_APPEND, 0600)
+
+	if err!= nil {
+		return f, 0, err
+	}
+
+	fi, err := f.Stat()
+	if err != nil {
+		f.Close()
+		return f, 0, err
+	}
+
+	return f, fi.Size(), err
+}
+
+func (store S3Store) GetSubPartSize(uploadId string) (size int64, err error) {
+	f, err :=os.OpenFile(store.SubPartDir+uploadId+".subpart", os.O_RDONLY, 0600)
+	if os.IsNotExist(err) {
+		return 0, nil
+	}else if err != nil {
+		return 0, err
+	}
+	defer f.Close()
+	fi, err := f.Stat()
+	if err != nil {
+		return 0, err
+	}
+	return fi.Size(), nil
+}
+
+func (store S3Store) DeleteSubPartFile(uploadId string) {
+    os.Remove(store.SubPartDir+uploadId+".subpart")
 }
