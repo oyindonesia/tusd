@@ -271,7 +271,7 @@ func (store S3Store) WriteChunk(id string, offset int64, src io.Reader) (int64, 
 		return bytesUploaded, err
 	}
 	local_size=n+local_size
-    file.seek(0, 0)
+    file.Seek(0, 0)
 
 	targetS3Part := int64(size-offset)
 	if info.SizeIsDeferred || ((size-offset)>optimalPartSize) {
@@ -395,10 +395,10 @@ func (store S3Store) GetInfo(id string) (info tusd.FileInfo, err error) {
 	info.Offset = offset
 
 	// get under 5MB part from local FS here
-	if !info.SizeIsDeferred && (info.offset < info.Size) {
+	if !info.SizeIsDeferred && (info.Offset < info.Size) {
 		localSize, err := store.GetSubPartSize(uploadId)
 		if err!= nil {
-			return 0, err
+			return info, err
 		}
 		info.Offset += localSize
 	}
