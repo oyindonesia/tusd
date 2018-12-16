@@ -681,7 +681,7 @@ func (store S3Store) keyWithPrefix(key string) *string {
 }
 
 func (store S3Store) GetOrCreateSubPartFile(uploadId string) (f *os.File, size int64, err error) {
-	f, err =os.OpenFile(store.SubPartDir+uploadId+".subpart", os.O_RDWR|os.O_CREATE|os.O_EXCL|os.O_APPEND, 0600)
+	f, err =os.OpenFile(store.SubPartDir+uploadId+".subpart", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0600)
 
 	if err!= nil {
 		return f, 0, err
