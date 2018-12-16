@@ -267,13 +267,14 @@ func (store S3Store) WriteChunk(id string, offset int64, src io.Reader) (int64, 
 	if err!=nil {
 		return bytesUploaded, err
 	}
-	local_size=n+local_size
+
     file.Seek(0, 0)
 
-	targetS3Part := int64(size-offset)
-	if info.SizeIsDeferred || ((size-offset)>optimalPartSize) {
+	targetS3Part := int64(size-offset+local_size)
+	if info.SizeIsDeferred || (targetS3Part>optimalPartSize) {
     	targetS3Part = optimalPartSize
 	}
+	local_size=n+local_size
 
 	if local_size >= targetS3Part {
 		defer os.Remove(file.Name())
