@@ -163,7 +163,6 @@ func NewUnroutedHandler(config Config) (*UnroutedHandler, error) {
 
 func (handler *UnroutedHandler) authorizeClientRequest(token string) bool {
 
-	return true
 	if handler.AuthService == "" || handler.AuthService == "skip" {
 		handler.log("AuthAccessService", "bypass authentication", handler.AuthService)
 		return true

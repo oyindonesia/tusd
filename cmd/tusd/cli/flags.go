@@ -82,7 +82,6 @@ func ParseFlags() {
 			"more information on these options.")
 	}
 
-
 	if !strings.HasSuffix(Flags.PartDir, "/") {
 		Flags.PartDir+= "/"
 	}

@@ -297,56 +297,6 @@ func (store S3Store) WriteChunk(id string, offset int64, src io.Reader) (int64, 
 		bytesUploaded += n
 	}
 	return bytesUploaded, nil
-	/*
-	for {
-		// Create a temporary file to store the part in it
-		file, err := ioutil.TempFile("", "tusd-s3-tmp-")
-		if err != nil {
-			return bytesUploaded, err
-		}
-		defer os.Remove(file.Name())
-		defer file.Close()
-
-		limitedReader := io.LimitReader(src, optimalPartSize)
-		n, err := io.Copy(file, limitedReader)
-		// io.Copy does not return io.EOF, so we not have to handle it differently.
-		if err != nil {
-			return bytesUploaded, err
-		}
-		// If io.Copy is finished reading, it will always return (0, nil).
-		if n == 0 {
-			return bytesUploaded, nil
-		}
-
-		if !info.SizeIsDeferred {
-			if (size - offset) <= optimalPartSize {
-				if (size - offset) != n {
-					return bytesUploaded, nil
-				}
-			} else if n < optimalPartSize {
-				return bytesUploaded, nil
-			}
-		}
-
-		// Seek to the beginning of the file
-		file.Seek(0, 0)
-
-		_, err = store.Service.UploadPart(&s3.UploadPartInput{
-			Bucket:     aws.String(store.Bucket),
-			Key:        store.keyWithPrefix(uploadId),
-			UploadId:   aws.String(multipartId),
-			PartNumber: aws.Int64(nextPartNum),
-			Body:       file,
-		})
-		if err != nil {
-			return bytesUploaded, err
-		}
-
-		offset += n
-		bytesUploaded += n
-		nextPartNum += 1
-	}
-	*/
 }
 
 func (store S3Store) GetInfo(id string) (info tusd.FileInfo, err error) {
