@@ -81,14 +81,11 @@ package s3store
 
 import (
 	"bytes"
-	"debug/elf"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
